@@ -1,0 +1,25 @@
+{
+   "author": "Yogi Aldino",
+   "background": {
+      "service_workers": [ "background.js" ]
+   },
+   "description": "Ekstensi untuk melakukan Intercept pada web.whatsapp.com",
+   "name": "WhatsApp Interceptor",
+   "permissions": [ "tabs", "activeTab", "storage", "unlimitedStorage", "webNavigation", "contextMenus" ],
+   "short_name": "NetInterceptor",
+   "version": "0.0.1",
+   "manifest_version": 3,
+   "content_scripts": [
+      {
+         "matches": ["https://web.whatsapp.com/*"],
+         "run_at": "document_start",
+         "js": ["inject.js"]
+      }
+   ],
+   "web_accessible_resources": [
+      {
+         "resources": [ "script.js" ],
+         "matches": [ "https://web.whatsapp.com/*" ]
+      }
+   ]
+}
