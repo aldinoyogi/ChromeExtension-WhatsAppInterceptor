@@ -6,75 +6,70 @@ window.fetch = async (...args) => {
   let [url, options] = args;
   const responseFetch = await originalFetch(url, options);
   const responseClone = responseFetch.clone();
+  const responseClone_ = responseFetch.clone();
+
+  const request = options ? { url, options } : { options: url };
 
   responseClone
     .json()
     .then((res) => {
-      const request = options ? { url, options } : { options: url };
       const response = { res };
       console.log("Fetch: ", { request, response });
     })
-    .catch((err) => {
-      console.log("Fetch Error: ", "Response bukan sebuah Object.");
+    .catch(() => {
+      const response = { res: responseClone_ };
+      console.log("Fetch: ", { request, response })
     });
 
   return responseFetch;
 };
-const originalXHR = window.XMLHttpRequest;
 
 
 /* ===============================================================================
-                                    Intercept XHR
+                                            Intercept XHR
 ================================================================================ */
-function newXHR() {
-  const xhr = new originalXHR();
-  const requestResponseObject = {};
+let originalXHR = window.XMLHttpRequest;
 
-  xhr.addEventListener("loadstart", function () {
-    requestResponseObject.requestUrl = this._url;
-    requestResponseObject.requestTimestamp = new Date().toISOString();
-    requestResponseObject.requestMethod = this._method;
-    requestResponseObject.requestHeader = this._headers;
-    requestResponseObject.requestPayload = this._body;
-  });
+window.XMLHttpRequest = function () {
+  const XHRReqRes = {}
+  let xhr = new originalXHR();
+  let originalOpen = xhr.open;
 
-  xhr.addEventListener("load", function () {
-    let responseData = (data) => {
+  xhr.open = function (method, url, async) {
+    const request = { url, method };
+    XHRReqRes["request"] = request;
+    originalOpen.apply(this, arguments);
+  };
+
+  let originalSend = xhr.send;
+
+  xhr.send = function () {
+    let self = this;
+    let originalOnLoad = self.onload;
+
+    function getResponseData(){
       try {
-        return JSON.parse(data);
-      } catch (error) {
-        return "Response bukan sebuah Object.";
-      }
-    };
-    requestResponseObject.responseStatus = this.status;
-    requestResponseObject.responseHeader = this.getAllResponseHeaders();
-    requestResponseObject.responseText = responseData(this.responseText);
-    requestResponseObject.responseTimestamp = new Date().toISOString();
+        return JSON.parse(self.responseText);
+      } catch { return self.response }
+    }
 
-    const requestResponse = {
-      request: {
-        url: requestResponseObject.requestUrl,
-        options: {
-          timestamp: requestResponseObject.requestTimestamp,
-          method: requestResponseObject.requestMethod,
-          header: requestResponseObject.requestHeader,
-          payload: requestResponseObject.requestPayload,
-        },
-      },
-      response: {
-        status: requestResponseObject.responseStatus,
-        header: requestResponseObject.responseHeader,
-        res: requestResponseObject.responseText,
-        timestamp: requestResponseObject.responseTimestamp,
-      },
+    self.onload = function () {
+      const headers = self.getAllResponseHeaders();
+      const res = getResponseData();
+      const code = self.code;
+      const status = self.statusText;
+      const type = self.responseType;
+      const response = { headers, res, code, status, type };
+      XHRReqRes["response"] = response;
+      console.log("XHR :", XHRReqRes);
+      originalOnLoad.apply(this, arguments);
     };
 
-    console.log("XHR: ", requestResponse);
-  });
+    originalSend.apply(this, arguments);
+  };
 
   return xhr;
-}
-window.XMLHttpRequest = newXHR;
+};
 
 
 /* ===============================================================================
