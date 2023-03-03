@@ -45,7 +45,7 @@ window.XMLHttpRequest = function () {
 
   xhr.send = function () {
     let self = this;
-    let originalOnLoad = self.onload;
+    // let originalOnLoad = self.onload;
 
     function getResponseData(){
       try {
@@ -62,7 +62,6 @@ window.XMLHttpRequest = function () {
       const response = { headers, res, code, status, type };
       XHRReqRes["response"] = response;
       console.log("XHR :", XHRReqRes);
-      originalOnLoad.apply(this, arguments);
     };
 
     originalSend.apply(this, arguments);
