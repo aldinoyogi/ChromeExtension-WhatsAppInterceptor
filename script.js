@@ -14,11 +14,11 @@ window.fetch = async (...args) => {
     .json()
     .then((res) => {
       const response = { res };
-      console.log("Fetch: ", { request, response });
+      // console.log("Fetch: ", { request, response });
     })
     .catch(() => {
       const response = { res: responseClone_ };
-      console.log("Fetch: ", { request, response })
+      // console.log("Fetch: ", { request, response })
     });
 
   return responseFetch;
@@ -61,7 +61,7 @@ window.XMLHttpRequest = function () {
       const type = self.responseType;
       const response = { headers, res, code, status, type };
       XHRReqRes["response"] = response;
-      console.log("XHR :", XHRReqRes);
+      // console.log("XHR :", XHRReqRes);
     };
 
     originalSend.apply(this, arguments);
@@ -77,7 +77,7 @@ window.XMLHttpRequest = function () {
 const WebSocketProxy = new Proxy(window.WebSocket, {
   construct(target, args) {
     const ws = new target(...args);
-    console.log("Websocket: ", args);
+    // console.log("Websocket: ", args);
 
     // Configurable hooks
     ws.hooks = {
@@ -92,7 +92,7 @@ const WebSocketProxy = new Proxy(window.WebSocket, {
           return;
         }
         if(location.host !== "web.whatsapp.com"){
-            console.log("Websocket Sent: ", {message: args});
+            // console.log("Websocket Sent: ", {message: args});
           }
         return target.apply(thisArg, args);
       },
@@ -118,7 +118,7 @@ const WebSocketProxy = new Proxy(window.WebSocket, {
             setTimeout(onWhatsAppMessage, 200);
           }
           if(location.host !== "web.whatsapp.com"){
-            console.log("Websocket Received: ", { message });
+            // console.log("Websocket Received: ", { message });
           }
           if (ws.hooks.beforeReceive(event) === false) {
             return;
@@ -152,41 +152,43 @@ function onWhatsAppMessage(){
     if(chatListElement){
         const eachList = [...chatListElement.childNodes];
 
+        const dateNow = new Date();
+
         eachList.forEach(item => {
 
             const messageElement = item.querySelector('div[data-testid="cell-frame-container"]')?.childNodes?.[1];
             const room = messageElement.querySelector('div[data-testid="cell-frame-title"] span[dir="auto"]')?.innerText;
             const message = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="ltr"]')?.innerText;
-            const date = messageElement.querySelector('div[data-testid="cell-frame-title"]')?.parentNode?.childNodes?.[1].innerText;
+            let date = messageElement.querySelector('div[data-testid="cell-frame-title"]')?.parentNode?.childNodes?.[1].innerText;
             const from = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="auto"]')?.innerText;
             const isNew = messageElement.querySelector('span[data-testid="icon-unread-count"]');
+            
+            if(date.includes(":")){
+              const hour = date.split(":")[0];
+              const minute = date.split(":")[1];
+              dateNow.setHours(parseInt(hour));
+              dateNow.setMinutes(parseInt(minute));
+              dateNow.setSeconds(0);
+              dateNow.setMilliseconds(0);
+              date = dateNow.toISOString();
+            }
 
             const objectMessage = { message, from: from ? from : room, room, date };
 
-            if(MESSAGES.length > 0){
+            if(MESSAGES.length > 0 && date.includes(":")){
               const isDuplicated = MESSAGES.filter(item => item.message == message && item.date == date).length > 0;
               if(!isDuplicated && message && isNew){
                 MESSAGES.push(objectMessage)
+                console.log(objectMessage);
               }
             } else {
-              MESSAGES.push(objectMessage)
+              if(date.includes(":")){
+                MESSAGES.push(objectMessage)
+                console.log(objectMessage);
+              }
             }
-
             keepMessagesLength();
-
-            // if(MESSAGES[room] && isNew && message){
-            //   if(MESSAGES[room].filter(item => item.message == message && item.date == date).length == 0){
-            //     MESSAGES[room].push(objectMessage);
-            //     console.log(objectMessage);
-            //   }
-            // }
-
-            // if(!MESSAGES[room] && isNew && message){
-            //   console.log(objectMessage);
-            //   MESSAGES[room] = [objectMessage];
-            // }
         });
-
         window.localStorage.setItem("messages", JSON.stringify(MESSAGES));
     }
 }
