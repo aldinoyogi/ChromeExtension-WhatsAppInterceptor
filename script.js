@@ -138,7 +138,14 @@ const WebSocketProxy = new Proxy(window.WebSocket, {
 
 window.WebSocket = WebSocketProxy;
 
-const MESSAGES = {}
+const MESSAGES = []
+
+function keepMessagesLength(){
+  if(MESSAGES.length > 1000){
+    MESSAGES.shift();
+    keepMessagesLength();
+  };
+}
 
 function onWhatsAppMessage(){
     const chatListElement = document.querySelector('div[aria-label="Chat list"]');
@@ -156,17 +163,28 @@ function onWhatsAppMessage(){
 
             const objectMessage = { message, from: from ? from : room, room, date };
 
-            if(MESSAGES[room] && isNew && message){
-                if(MESSAGES[room].filter(item => item.message == message && item.date == date).length == 0){
-                    MESSAGES[room].push(objectMessage);
-                    console.log(objectMessage);
-                }
+            if(MESSAGES.length > 0){
+              const isDuplicated = MESSAGES.filter(item => item.message == message && item.date == date).length > 0;
+              if(!isDuplicated && message && isNew){
+                MESSAGES.push(objectMessage)
+              }
+            } else {
+              MESSAGES.push(objectMessage)
             }
 
-            if(!MESSAGES[room] && isNew && message){
-                    console.log(objectMessage);
-                    MESSAGES[room] = [objectMessage];
-            }
+            keepMessagesLength();
+
+            // if(MESSAGES[room] && isNew && message){
+            //   if(MESSAGES[room].filter(item => item.message == message && item.date == date).length == 0){
+            //     MESSAGES[room].push(objectMessage);
+            //     console.log(objectMessage);
+            //   }
+            // }
+
+            // if(!MESSAGES[room] && isNew && message){
+            //   console.log(objectMessage);
+            //   MESSAGES[room] = [objectMessage];
+            // }
         });
 
         window.localStorage.setItem("messages", JSON.stringify(MESSAGES));
