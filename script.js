@@ -114,7 +114,7 @@ const WebSocketProxy = new Proxy(window.WebSocket, {
       set(func) {
         const onmessage = function onMessageProxy(event) {
           const message = event.data;
-		      console.log("New Incoming")
+		      console.log("WebSocket - New Incoming")
           if(location.host === "web.whatsapp.com"){
             setTimeout(onWhatsAppMessage, 200);
           }
