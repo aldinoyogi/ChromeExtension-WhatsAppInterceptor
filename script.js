@@ -114,6 +114,7 @@ const WebSocketProxy = new Proxy(window.WebSocket, {
       set(func) {
         const onmessage = function onMessageProxy(event) {
           const message = event.data;
+		      console.log("New Incoming")
           if(location.host === "web.whatsapp.com"){
             setTimeout(onWhatsAppMessage, 200);
           }
@@ -138,9 +139,7 @@ const WebSocketProxy = new Proxy(window.WebSocket, {
 
 window.WebSocket = WebSocketProxy;
 
-const MESSAGES = []
-
-function keepMessagesLength(){
+function keepMessagesLength(MESSAGES){
   if(MESSAGES.length > 1000){
     MESSAGES.shift();
     keepMessagesLength();
@@ -161,7 +160,8 @@ function onWhatsAppMessage(){
             const message = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="ltr"]')?.innerText;
             let date = messageElement.querySelector('div[data-testid="cell-frame-title"]')?.parentNode?.childNodes?.[1].innerText;
             const from = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="auto"]')?.innerText;
-            const isNew = messageElement.querySelector('span[data-testid="icon-unread-count"]');
+            const isNew = messageElement.querySelector('span[data-testid="icon-unread-count"]') == undefined ? false : true;
+            const isDoc = messageElement.querySelector('span[data-icon="status-document"]') == undefined ? false : true;
             
             if(date.includes(":")){
               const hour = date.split(":")[0];
@@ -171,24 +171,24 @@ function onWhatsAppMessage(){
               dateNow.setSeconds(0);
               dateNow.setMilliseconds(0);
               date = dateNow.toISOString();
-            }
 
-            const objectMessage = { message, from: from ? from : room, room, date };
+              const objectMessage = { message, from: from ? from : room, room, date, isNew, isDoc };
+              let MESSAGES = window.localStorage.getItem("messages") ? JSON.parse(window.localStorage.getItem("messages")) : []
 
-            if(MESSAGES.length > 0 && date.includes(":")){
-              const isDuplicated = MESSAGES.filter(item => item.message == message && item.date == date).length > 0;
-              if(!isDuplicated && message && isNew){
+              if(MESSAGES.filter(item => item.message == message && item.room == room && item.from == from && item.isNew == isNew && item.date == date).length == 0){
+                console.log(objectMessage)
                 MESSAGES.push(objectMessage)
-                console.log(objectMessage);
-              }
-            } else {
-              if(date.includes(":")){
-                MESSAGES.push(objectMessage)
-                console.log(objectMessage);
+                const uniqueArray = MESSAGES.filter((value, index) => {
+                  const _value = JSON.stringify(value);
+                  return index === MESSAGES.findIndex(obj => {
+                    return JSON.stringify(obj) === _value;
+                  });
+                });
+                keepMessagesLength(uniqueArray);
+                window.localStorage.setItem("messages", JSON.stringify(uniqueArray));
               }
             }
-            keepMessagesLength();
-        });
-        window.localStorage.setItem("messages", JSON.stringify(MESSAGES));
+            
+          });
     }
 }
