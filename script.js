@@ -148,47 +148,83 @@ function keepMessagesLength(MESSAGES){
 
 function onWhatsAppMessage(){
     const chatListElement = document.querySelector('div[aria-label="Chat list"]');
+    const chatRoomListElement = document.querySelector('div[data-testid="conversation-panel-messages"] div[role="application"]');
+    
+    /* ========================================================================================================
+                                      Hanya mengambil pesan dari Tampilan Room
+    ========================================================================================================= */
+    if(chatRoomListElement != null){
+      let messages = []
+      let roomOwner = "";
+      const eachList = [...chatRoomListElement.childNodes];
+      eachList.forEach(item => {
+        let message = item.innerText;
+        const isDoc = item.querySelector('div[data-testid="document-thumb"][title^="Download"]');
+        const isIn = item.querySelector('div[class*="message-in"]') == null ? false : true;
+        const isOut = item.querySelector('div[class*="message-out"]') == null ? false : true;
+        const room = document.querySelector('div[data-testid="conversation-info-header"][role="button"] span')?.innerText;
+        const separator = item.querySelector('div[class*="focusable-list-item"] span')?.innerText;
+        const time = item.querySelector('div[data-testid="msg-meta"] span')?.innerText;
+
+        if(isDoc != null) {
+          message = item.querySelector('span[data-testid="document-caption"] span')?.innerText;
+        } else {
+          message = item.querySelector('span[class*="selectable-text copyable-text"] span')?.innerText;
+        }
+
+        if(roomOwner == "" && room != null){
+          roomOwner = room;
+        }
+
+        const objectMessage = { room, isIn, isOut, isDoc: isDoc ? true : false, message, separator, time };
+        messages.push(objectMessage)
+      })
+      window.localStorage.setItem(roomOwner, JSON.stringify(messages));
+      console.log(roomOwner, messages)
+    }
+
+    /* ========================================================================================================
+                                      Hanya mengambil pesan dari Tampilan Umum
+    ========================================================================================================= */
     if(chatListElement){
         const eachList = [...chatListElement.childNodes];
-
         const dateNow = new Date();
 
         eachList.forEach(item => {
 
-            const messageElement = item.querySelector('div[data-testid="cell-frame-container"]')?.childNodes?.[1];
-            const room = messageElement.querySelector('div[data-testid="cell-frame-title"] span[dir="auto"]')?.innerText;
-            const message = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="ltr"]')?.innerText;
-            let date = messageElement.querySelector('div[data-testid="cell-frame-title"]')?.parentNode?.childNodes?.[1].innerText;
-            const from = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="auto"]')?.innerText;
-            const isNew = messageElement.querySelector('span[data-testid="icon-unread-count"]') == undefined ? false : true;
-            const isDoc = messageElement.querySelector('span[data-icon="status-document"]') == undefined ? false : true;
-            
-            if(date.includes(":")){
-              const hour = date.split(":")[0];
-              const minute = date.split(":")[1];
-              dateNow.setHours(parseInt(hour));
-              dateNow.setMinutes(parseInt(minute));
-              dateNow.setSeconds(0);
-              dateNow.setMilliseconds(0);
-              date = dateNow.toISOString();
+          const messageElement = item.querySelector('div[data-testid="cell-frame-container"]')?.childNodes?.[1];
+          const room = messageElement.querySelector('div[data-testid="cell-frame-title"] span[dir="auto"]')?.innerText;
+          const message = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="ltr"]')?.innerText;
+          let date = messageElement.querySelector('div[data-testid="cell-frame-title"]')?.parentNode?.childNodes?.[1].innerText;
+          const from = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="auto"]')?.innerText;
+          const isNew = messageElement.querySelector('span[data-testid="icon-unread-count"]') == undefined ? false : true;
+          const isDoc = messageElement.querySelector('span[data-icon="status-document"]') == undefined ? false : true;
+          
+          if(date.includes(":")){
+            const hour = date.split(":")[0];
+            const minute = date.split(":")[1];
+            dateNow.setHours(parseInt(hour));
+            dateNow.setMinutes(parseInt(minute));
+            dateNow.setSeconds(0);
+            dateNow.setMilliseconds(0);
+            date = dateNow.toISOString();
 
-              const objectMessage = { message, from: from ? from : room, room, date, isNew, isDoc };
-              let MESSAGES = window.localStorage.getItem("messages") ? JSON.parse(window.localStorage.getItem("messages")) : []
+            const objectMessage = { message, from: from ? from : room, room, date, isNew, isDoc };
+            let MESSAGES = window.localStorage.getItem("messages") ? JSON.parse(window.localStorage.getItem("messages")) : []
 
-              if(MESSAGES.filter(item => item.message == message && item.room == room && item.from == from && item.isNew == isNew && item.date == date).length == 0){
-                console.log(objectMessage)
-                MESSAGES.push(objectMessage)
-                const uniqueArray = MESSAGES.filter((value, index) => {
-                  const _value = JSON.stringify(value);
-                  return index === MESSAGES.findIndex(obj => {
-                    return JSON.stringify(obj) === _value;
-                  });
+            if(MESSAGES.filter(item => item.message == message && item.room == room && item.from == from && item.isNew == isNew && item.date == date).length == 0){
+              console.log(objectMessage)
+              MESSAGES.push(objectMessage)
+              const uniqueArray = MESSAGES.filter((value, index) => {
+                const _value = JSON.stringify(value);
+                return index === MESSAGES.findIndex(obj => {
+                  return JSON.stringify(obj) === _value;
                 });
-                keepMessagesLength(uniqueArray);
-                window.localStorage.setItem("messages", JSON.stringify(uniqueArray));
-              }
+              });
+              keepMessagesLength(uniqueArray);
+              window.localStorage.setItem("messages", JSON.stringify(uniqueArray));
             }
-            
-          });
+          }
+        });
     }
 }
