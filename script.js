@@ -154,33 +154,69 @@ function onWhatsAppMessage(){
                                       Hanya mengambil pesan dari Tampilan Room
     ========================================================================================================= */
     if(chatRoomListElement != null){
-      let messages = []
+      // let messages = []
       let roomOwner = "";
+      let separator = "";
       const eachList = [...chatRoomListElement.childNodes];
+
       eachList.forEach(item => {
+        let filename = "";
         let message = item.innerText;
         const isDoc = item.querySelector('div[data-testid="document-thumb"][title^="Download"]');
         const isIn = item.querySelector('div[class*="message-in"]') == null ? false : true;
         const isOut = item.querySelector('div[class*="message-out"]') == null ? false : true;
         const room = document.querySelector('div[data-testid="conversation-info-header"][role="button"] span')?.innerText;
-        const separator = item.querySelector('div[class*="focusable-list-item"] span')?.innerText;
-        const time = item.querySelector('div[data-testid="msg-meta"] span')?.innerText;
+        let time = item.querySelector('div[data-testid="msg-meta"] span')?.innerText;
+
+        if(item.querySelector('div[class*="focusable-list-item"] span')?.innerText){
+          separator = item.querySelector('div[class*="focusable-list-item"] span')?.innerText;
+        }
 
         if(isDoc != null) {
           message = item.querySelector('span[data-testid="document-caption"] span')?.innerText;
+          const downloadBtn = item.querySelector('div[role="button"][data-testid="document-thumb"][title^="Download"]');
+          filename = downloadBtn.title;
+          filename = filename.match(/(?<=\").*(?=\")/gi)[0]
+          // downloadBtn.click();
         } else {
           message = item.querySelector('span[class*="selectable-text copyable-text"] span')?.innerText;
         }
 
-        if(roomOwner == "" && room != null){
-          roomOwner = room;
+        if(separator){
+          switch (separator) {
+            case "TODAY":
+              const now = new Date()
+              time = `${now.getDate()}/${now.getMonth()}/${now.getFullYear()} ${time}`;
+              collected();
+              return;
+            case "YESTERDAY":
+              const yesterday = new Date(Date.now()  - (3600 * 1000 * 24));
+              time = `${yesterday.getDate()}/${yesterday.getMonth()}/${yesterday.getFullYear()} ${time}`;
+              collected();
+              return;
+            default:
+              return;
+          }
         }
-
-        const objectMessage = { room, isIn, isOut, isDoc: isDoc ? true : false, message, separator, time };
-        messages.push(objectMessage)
+        
+        function collected(){
+          if(roomOwner == "" && room != null){
+            roomOwner = room;
+          }
+          
+          let MESSAGES = window.localStorage.getItem(roomOwner) ? JSON.parse(window.localStorage.getItem(roomOwner)) : [];
+          const objectMessage = { room, isIn, isOut, isDoc: isDoc ? true : false, message, separator, time, filename };
+  
+          if(MESSAGES.filter(itm => itm.message == message && itm.room == room && itm.time == time).length == 0){
+            if(isDoc){
+              item.querySelector('div[role="button"][data-testid="document-thumb"][title^="Download"]').click()
+            }
+            MESSAGES.push(objectMessage);
+            window.localStorage.setItem(roomOwner, JSON.stringify(MESSAGES));
+          }
+        }
       })
-      window.localStorage.setItem(roomOwner, JSON.stringify(messages));
-      console.log(roomOwner, messages)
+      // console.log(roomOwner, messages)
     }
 
     /* ========================================================================================================
@@ -212,7 +248,7 @@ function onWhatsAppMessage(){
             const objectMessage = { message, from: from ? from : room, room, date, isNew, isDoc };
             let MESSAGES = window.localStorage.getItem("messages") ? JSON.parse(window.localStorage.getItem("messages")) : []
 
-            if(MESSAGES.filter(item => item.message == message && item.room == room && item.from == from && item.isNew == isNew && item.date == date).length == 0){
+            if(MESSAGES.filter(itm => itm.message == message && itm.room == room && itm.from == from && itm.isNew == isNew && itm.date == date).length == 0){
               console.log(objectMessage)
               MESSAGES.push(objectMessage)
               const uniqueArray = MESSAGES.filter((value, index) => {
