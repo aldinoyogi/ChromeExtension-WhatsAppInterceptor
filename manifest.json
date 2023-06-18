@@ -18,7 +18,7 @@
    ],
    "web_accessible_resources": [
       {
-         "resources": [ "script.js" ],
+         "resources": [ "script.js", "moment.js" ],
          "matches": [ "https://web.whatsapp.com/*" ]
       }
    ]

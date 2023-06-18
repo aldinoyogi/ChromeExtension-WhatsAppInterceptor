@@ -13,4 +13,5 @@ function injectCode(src) {
 }
 
 
+injectCode(chrome.runtime.getURL("/moment.js"));
 injectCode(chrome.runtime.getURL("/script.js"));

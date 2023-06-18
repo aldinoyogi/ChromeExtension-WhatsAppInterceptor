@@ -113,13 +113,9 @@ const WebSocketProxy = new Proxy(window.WebSocket, {
     Object.defineProperty(ws, "onmessage", {
       set(func) {
         const onmessage = function onMessageProxy(event) {
-          const message = event.data;
-		      console.log("WebSocket - New Incoming")
+          // const message = event.data;
           if(location.host === "web.whatsapp.com"){
-            setTimeout(onWhatsAppMessage, 200);
-          }
-          if(location.host !== "web.whatsapp.com"){
-            // console.log("Websocket Received: ", { message });
+            // no action
           }
           if (ws.hooks.beforeReceive(event) === false) {
             return;
@@ -139,128 +135,273 @@ const WebSocketProxy = new Proxy(window.WebSocket, {
 
 window.WebSocket = WebSocketProxy;
 
-function keepMessagesLength(MESSAGES){
-  if(MESSAGES.length > 1000){
-    MESSAGES.shift();
-    keepMessagesLength();
-  };
+/* =======================================================================================================
+                                          Fungsi Click Simulate
+========================================================================================================= */
+
+const mouseClickEvents = ['mousedown', 'click', 'mouseup'];
+function simulateMouseClick(element){
+  mouseClickEvents.forEach(mouseEventType =>
+    element.dispatchEvent(
+      new MouseEvent(mouseEventType, {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          buttons: 1
+      })
+    )
+  );
 }
 
+/* =======================================================================================================
+                                          Fungsi Scroll
+========================================================================================================= */
+function triggerNewMessage(element){
+  simulateMouseClick(element.querySelector('div[data-testid="cell-frame-container"]'))
+  const scrollTotal = 3;
+  for (let index = 0; index < scrollTotal; index++) {
+    setTimeout(scrollUp, (index + 3) * 1000);
+  }
+  setTimeout(scrollDown, (scrollTotal + 3) * 1000);
+}
+
+function scrollUp(){
+  const chatRoomListElement = document.querySelector('div[data-testid="conversation-panel-messages"] div[role="application"]');
+  if(chatRoomListElement){
+    const eachList = [...chatRoomListElement.childNodes];
+    const firstRow = eachList[1];
+    firstRow.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+  }
+}
+
+function scrollDown(){
+  const chatRoomListElement = document.querySelector('div[data-testid="conversation-panel-messages"] div[role="application"]');
+  if(chatRoomListElement){
+    const toBottom = document.querySelector('div[role="button"][aria-label="Scroll to bottom"]');
+    simulateMouseClick(toBottom);
+  }
+}
+
+/* =======================================================================================================
+                                              Ambil Pesan Seluruh Contact
+========================================================================================================= */
 function onWhatsAppMessage(){
-    const chatListElement = document.querySelector('div[aria-label="Chat list"]');
-    const chatRoomListElement = document.querySelector('div[data-testid="conversation-panel-messages"] div[role="application"]');
+  const chatListElement = document.querySelector('div[aria-label="Chat list"]');
+  const notificationBar = document.querySelector('span[data-testid="chat-butterbar"] button[aria-label="Close"]');
+  
+  if(notificationBar){
+    notificationBar.click();
+  }
+  
+  if(chatListElement){
+    const dateNow = new Date();
+    const eachList = [...chatListElement.childNodes];
     
-    /* ========================================================================================================
-                                      Hanya mengambil pesan dari Tampilan Room
-    ========================================================================================================= */
-    if(chatRoomListElement != null){
-      // let messages = []
-      let roomOwner = "";
-      let separator = "";
-      const eachList = [...chatRoomListElement.childNodes];
+    let ALL_MESSAGES = window.localStorage.getItem("messages") ? JSON.parse(window.localStorage.getItem("messages")) : [];
 
-      eachList.forEach(item => {
-        let filename = "";
-        let message = item.innerText;
-        const isDoc = item.querySelector('div[data-testid="document-thumb"][title^="Download"]');
-        const isIn = item.querySelector('div[class*="message-in"]') == null ? false : true;
-        const isOut = item.querySelector('div[class*="message-out"]') == null ? false : true;
-        const room = document.querySelector('div[data-testid="conversation-info-header"][role="button"] span')?.innerText;
-        let time = item.querySelector('div[data-testid="msg-meta"] span')?.innerText;
+    for (let index = 0; index < eachList.length; index++) {
+      try {
+        const element = eachList[index];
 
-        if(item.querySelector('div[class*="focusable-list-item"] span')?.innerText){
-          separator = item.querySelector('div[class*="focusable-list-item"] span')?.innerText;
+        const objectMessage = {
+          room: "",
+          from: "",
+          message: "",
+          isDoc: false,
+          isImage: false,
+          dateTime: ""
         }
 
-        if(isDoc != null) {
-          message = item.querySelector('span[data-testid="document-caption"] span')?.innerText;
-          const downloadBtn = item.querySelector('div[role="button"][data-testid="document-thumb"][title^="Download"]');
-          filename = downloadBtn.title;
-          filename = filename.match(/(?<=\").*(?=\")/gi)[0]
-          // downloadBtn.click();
-        } else {
-          message = item.querySelector('span[class*="selectable-text copyable-text"] span')?.innerText;
+        const roomSelector = element.querySelector('div[data-testid="cell-frame-title"] span[dir="auto"]');
+        if(roomSelector) objectMessage.room = roomSelector.innerText;
+
+        const fromSelector = element.querySelector('span[data-testid="last-msg-status"] span[dir="auto"]');
+        if(fromSelector) objectMessage.from = fromSelector.innerText;
+
+        const messageSelector = element.querySelector('span[data-testid="last-msg-status"] span[dir="ltr"]');
+        if(messageSelector) objectMessage.message = messageSelector?.innerText;
+
+        const isDocSelector = element.querySelector('span[data-testid="status-document"]');
+        if(isDocSelector) {
+          const prevElement = isDocSelector.parentElement.previousElementSibling?.previousElementSibling?.innerText;
+          objectMessage.isDoc = true;
+          objectMessage.from = prevElement || "";
         }
 
-        if(separator){
-          switch (separator) {
-            case "TODAY":
-              const now = new Date()
-              time = `${now.getDate()}/${now.getMonth()}/${now.getFullYear()} ${time}`;
-              collected();
-              return;
-            case "YESTERDAY":
-              const yesterday = new Date(Date.now()  - (3600 * 1000 * 24));
-              time = `${yesterday.getDate()}/${yesterday.getMonth()}/${yesterday.getFullYear()} ${time}`;
-              collected();
-              return;
-            default:
-              return;
+        const isImageSelector = element.querySelector('span[data-testid="status-image"]');
+        if(isImageSelector) {
+          const prevElement = isImageSelector.parentElement.previousElementSibling?.previousElementSibling?.innerText;
+          objectMessage.isImage = true;
+          objectMessage.from = prevElement || "";
+        }
+
+        if(objectMessage.from == ""){
+          objectMessage.from = objectMessage.room;
+        }
+
+        const dateTimeSelector = element.querySelector('div[data-testid="cell-frame-primary-detail"]');
+        if(dateTimeSelector?.innerText?.includes(":")){
+          objectMessage.dateTime = moment(dateTimeSelector?.innerText, "HH:mm").format("YYYY/MM/DD HH:mm");
+        }
+
+        const isNew = element.querySelector('span[data-testid="icon-unread-count"]');
+
+        if(objectMessage.dateTime.includes(":")){
+          const isDuplicate = ALL_MESSAGES.some(item => JSON.stringify(item) == JSON.stringify(objectMessage));
+          if(!isDuplicate){
+            console.log(objectMessage);
+            ALL_MESSAGES.push(objectMessage);
+            if(isNew) triggerNewMessage(element);
+          }
+        }
+
+      } catch (error) {
+        console.log("Debug - AllMessage: ", error);
+      }
+    }
+
+    if(ALL_MESSAGES.length > 0){
+      ALL_MESSAGES.sort((a, b) => moment(a.dateTime, "YYYY/MM/DD HH:mm").unix() - moment(b.dateTime, "YYYY/MM/DD HH:mm").unix());
+      window.localStorage.setItem("messages", JSON.stringify(ALL_MESSAGES));
+    }
+  }
+  setTimeout(onWhatsAppMessage, 500);
+}
+
+
+/* =============================================================================================================
+                                              Ambil Pesan Pada Room
+============================================================================================================== */
+function grabMessageOnRoom(){
+  const chatRoomListElement = document.querySelector('div[data-testid="conversation-panel-messages"] div[role="application"]');
+
+  if(chatRoomListElement){
+    let separatorDate = "";
+    
+    const room = document.querySelector('div[data-testid="conversation-info-header"][role="button"] span[data-testid="conversation-info-header-chat-title"]')?.innerText;
+    const eachList = [...chatRoomListElement.childNodes];
+
+    let ROOM_MESSAGE = window.localStorage.getItem(room) ? JSON.parse(window.localStorage.getItem(room)) : [];
+    
+    for (let index = 0; index < eachList.length; index++) {
+      const element = eachList[index];
+
+      const objectMessage = {
+        message: "",
+        from: "",
+        dateTime: "",
+        isIn: false,
+        isOut: false,
+        isImage: false,
+        isDoc: false,
+        docName: ""
+      }
+
+      try {
+
+        const separatorSelector = element.querySelector('div[class*="focusable-list-item"] div span[dir="auto"]');
+        if(separatorSelector){
+          const dayname = separatorSelector.innerText.toLowerCase();
+          const subtractDay = Array.from({ length: 7 }).map((item, idx) => idx)
+            .filter(item => moment().subtract(item, "days").format("dddd").toLowerCase() == dayname);
+          if(dayname == "today"){
+            separatorDate = moment().format("YYYY/MM/DD");
+          }
+          if(dayname == "yesterday"){
+            separatorDate = moment().subtract(1, "days").format("YYYY/MM/DD");
+          }
+          if(subtractDay.length != 0){
+            separatorDate = moment().subtract(subtractDay[0], "days").format("YYYY/MM/DD");
+          }
+          if(dayname.match(/\d{2}\/\d{2}\/\d{4}/g)){
+            separatorDate = moment(dayname, "DD/MM/YYYY").format("YYYY/MM/DD");
+          }
+          if(dayname.includes("unread message")){
+            simulateMouseClick(separatorSelector);
+          }
+        }
+
+        const messageSelector = element.querySelector('div[data-testid="msg-container"] span[class*="selectable-text copyable-text"]');
+        if(messageSelector){
+          const messageArr = [...messageSelector.querySelector('span').childNodes];
+          const message = messageArr.map(item => item.textContent || item.alt).join("");
+          objectMessage.message = message
+        }
+        
+        const timeSelector = element.querySelector('div[data-testid="msg-meta"] span[dir="auto"]');
+        if(timeSelector){
+          const time = timeSelector.innerText;
+          if(separatorDate != ""){
+            objectMessage.dateTime = `${separatorDate} ${time}`;
           }
         }
         
-        function collected(){
-          if(roomOwner == "" && room != null){
-            roomOwner = room;
-          }
-          
-          let MESSAGES = window.localStorage.getItem(roomOwner) ? JSON.parse(window.localStorage.getItem(roomOwner)) : [];
-          const objectMessage = { room, isIn, isOut, isDoc: isDoc ? true : false, message, separator, time, filename };
-  
-          if(MESSAGES.filter(itm => itm.message == message && itm.room == room && itm.time == time).length == 0){
-            if(isDoc){
-              item.querySelector('div[role="button"][data-testid="document-thumb"][title^="Download"]').click()
-            }
-            MESSAGES.push(objectMessage);
-            window.localStorage.setItem(roomOwner, JSON.stringify(MESSAGES));
+        const fromQuoteSelector = element.querySelector('div[data-testid="msg-container"] div[class*="copyable-text"][data-pre-plain-text]');
+        if(fromQuoteSelector && objectMessage.from == ""){
+          const fromName = fromQuoteSelector?.getAttribute("data-pre-plain-text").match(/(?<=\[\d+\:\d+\,\s\d+\/\d+\/\d+\]\s).*(?=\:\s?$)/g);
+          if(fromName) objectMessage.from = fromName[0];
+        }
+
+        const fromMediaSelector = element.querySelector('div[role="button"][data-testid$="-thumb"]');
+        if(fromMediaSelector && objectMessage.from == ""){
+          const fromName = fromMediaSelector?.parentElement?.previousElementSibling?.getAttribute('aria-label')?.replace(/\:\s?$/g, "");
+          objectMessage.from = fromName ? fromName : "";
+          if(objectMessage.from == ""){
+            const fromNameImg = fromMediaSelector?.parentElement?.parentElement?.
+              previousElementSibling?.getAttribute('aria-label')?.replace(/\:\s?$/g, "");
+            objectMessage.from = fromNameImg ? fromNameImg : "";
           }
         }
-      })
-      // console.log(roomOwner, messages)
-    }
 
-    /* ========================================================================================================
-                                      Hanya mengambil pesan dari Tampilan Umum
-    ========================================================================================================= */
-    if(chatListElement){
-        const eachList = [...chatListElement.childNodes];
-        const dateNow = new Date();
+        const fromTitle = element.querySelector('div[role="button"][data-testid*="-thumb"]');
+        if(fromTitle && objectMessage.from == ""){
+          const fromName = fromTitle.previousElementSibling?.querySelector('span')?.innerText;
+          objectMessage.from = fromName ? fromName : "";
+        }
 
-        eachList.forEach(item => {
+        const docNameSelector = element.querySelector('div[data-testid="document-thumb"][title*="Download"]');
+        if(docNameSelector){
+          const docname = docNameSelector.title.match(/(?<=\").*(?=\")/g);
+          if(docname) objectMessage.docName = docname[0];
+        }
 
-          const messageElement = item.querySelector('div[data-testid="cell-frame-container"]')?.childNodes?.[1];
-          const room = messageElement.querySelector('div[data-testid="cell-frame-title"] span[dir="auto"]')?.innerText;
-          const message = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="ltr"]')?.innerText;
-          let date = messageElement.querySelector('div[data-testid="cell-frame-title"]')?.parentNode?.childNodes?.[1].innerText;
-          const from = messageElement.querySelector('span[data-testid="last-msg-status"] span[dir="auto"]')?.innerText;
-          const isNew = messageElement.querySelector('span[data-testid="icon-unread-count"]') == undefined ? false : true;
-          const isDoc = messageElement.querySelector('span[data-icon="status-document"]') == undefined ? false : true;
-          
-          if(date.includes(":")){
-            const hour = date.split(":")[0];
-            const minute = date.split(":")[1];
-            dateNow.setHours(parseInt(hour));
-            dateNow.setMinutes(parseInt(minute));
-            dateNow.setSeconds(0);
-            dateNow.setMilliseconds(0);
-            date = dateNow.toISOString();
+        const isImageSelector = element.querySelector('div[data-testid="image-thumb"]');
+        if(isImageSelector) objectMessage.isImage = true;
 
-            const objectMessage = { message, from: from ? from : room, room, date, isNew, isDoc };
-            let MESSAGES = window.localStorage.getItem("messages") ? JSON.parse(window.localStorage.getItem("messages")) : []
+        const isDocSelector = element.querySelector('div[data-testid="document-thumb"]');
+        if(isDocSelector) objectMessage.isDoc = true;
 
-            if(MESSAGES.filter(itm => itm.message == message && itm.room == room && itm.from == from && itm.isNew == isNew && itm.date == date).length == 0){
-              console.log(objectMessage)
-              MESSAGES.push(objectMessage)
-              const uniqueArray = MESSAGES.filter((value, index) => {
-                const _value = JSON.stringify(value);
-                return index === MESSAGES.findIndex(obj => {
-                  return JSON.stringify(obj) === _value;
-                });
-              });
-              keepMessagesLength(uniqueArray);
-              window.localStorage.setItem("messages", JSON.stringify(uniqueArray));
-            }
+        const outComingSelector = element.querySelector('div[class*="message-out"]');
+        if(outComingSelector){
+          objectMessage.isOut = true
+          objectMessage.from = "You"
+        };
+
+        const inComingSelector = element.querySelector('div[class*="message-in"]');
+        if(inComingSelector) objectMessage.isIn = true;
+
+        const isDuplicate = ROOM_MESSAGE.some(item => JSON.stringify(item) == JSON.stringify(objectMessage));
+
+        if(!isDuplicate && objectMessage.dateTime != ""){
+          console.log(objectMessage);
+          ROOM_MESSAGE.push(objectMessage);
+          if(docNameSelector){
+            simulateMouseClick(docNameSelector);
           }
-        });
+        }
+
+      } catch (error) {
+        console.log("Debug - RoomMessage: ", error)
+      }
     }
+
+    if(ROOM_MESSAGE.length > 0){
+      ROOM_MESSAGE.sort((a, b) => moment(a.dateTime, "YYYY/MM/DD HH:mm").unix() - moment(b.dateTime, "YYYY/MM/DD HH:mm").unix());
+      window.localStorage.setItem(room, JSON.stringify(ROOM_MESSAGE));
+    }
+  }
+  setTimeout(grabMessageOnRoom, 300);
 }
+
+onWhatsAppMessage();
+grabMessageOnRoom();
