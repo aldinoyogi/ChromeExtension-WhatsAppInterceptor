@@ -388,10 +388,13 @@ function grabMessageOnRoom(){
 
         if(!isDuplicate && objectMessage.dateTime != ""){
           console.log(objectMessage);
-          ROOM_MESSAGE.push(objectMessage);
-          if(docNameSelector){
+          if(!objectMessage.isDoc){
+            ROOM_MESSAGE.push(objectMessage);
+          };
+          if(objectMessage.isDoc && objectMessage.docName != ""){
+            ROOM_MESSAGE.push(objectMessage);
             simulateMouseClick(docNameSelector);
-          }
+          };
         }
 
       } catch (error) {
