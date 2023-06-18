@@ -348,8 +348,12 @@ function grabMessageOnRoom(){
           objectMessage.from = fromName ? fromName : "";
           if(objectMessage.from == ""){
             const fromNameImg = fromMediaSelector?.parentElement?.parentElement?.
-              previousElementSibling?.getAttribute('aria-label')?.replace(/\:\s?$/g, "");
-            objectMessage.from = fromNameImg ? fromNameImg : "";
+              previousElementSibling?.hasAttribute("data-testid");
+            if(!fromNameImg){
+              const from = fromMediaSelector?.parentElement?.parentElement?.
+                previousElementSibling?.getAttribute("aria-label")?.replace(/\:\s?$/g, "");
+                objectMessage.from = from ? from : "";
+            }
           }
         }
 
