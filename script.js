@@ -287,15 +287,16 @@ function grabMessageOnRoom(){
       const element = eachList[index];
 
       const objectMessage = {
-        message: "",
+        id: "",
+        room: room,
         from: "",
+        message: "",
         dateTime: "",
         isIn: false,
         isOut: false,
         isImage: false,
         isDoc: false,
         docName: "",
-        id: ""
       }
 
       try {
