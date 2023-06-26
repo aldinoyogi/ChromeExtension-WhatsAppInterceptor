@@ -294,7 +294,8 @@ function grabMessageOnRoom(){
         isOut: false,
         isImage: false,
         isDoc: false,
-        docName: ""
+        docName: "",
+        id: ""
       }
 
       try {
@@ -384,7 +385,15 @@ function grabMessageOnRoom(){
         const inComingSelector = element.querySelector('div[class*="message-in"]');
         if(inComingSelector) objectMessage.isIn = true;
 
-        const isDuplicate = ROOM_MESSAGE.some(item => JSON.stringify(item) == JSON.stringify(objectMessage));
+        const idSelector = element.querySelector('div[role="row"] div');
+        if(idSelector){
+          const dataId = idSelector.getAttribute("data-testid");
+          const matchId = dataId.match(/(?<=\.(us|uk)\_)([a-z0-9]+)/gi);
+          if(matchId) objectMessage.id = matchId[0];
+          
+        }
+
+        const isDuplicate = ROOM_MESSAGE.filter(item => item.id == objectMessage.id).length > 0;
 
         if(!isDuplicate && objectMessage.dateTime != ""){
           console.log(objectMessage);
