@@ -194,7 +194,6 @@ function onWhatsAppMessage(){
   }
   
   if(chatListElement){
-    const dateNow = new Date();
     const eachList = [...chatListElement.childNodes];
     
     let ALL_MESSAGES = window.localStorage.getItem("messages") ? JSON.parse(window.localStorage.getItem("messages")) : [];
