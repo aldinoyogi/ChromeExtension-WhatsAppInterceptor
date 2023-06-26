@@ -286,7 +286,7 @@ function grabMessageOnRoom(){
       const element = eachList[index];
 
       const objectMessage = {
-        id: "",
+        id_message: "",
         room: room,
         from: "",
         message: "",
@@ -389,11 +389,11 @@ function grabMessageOnRoom(){
         if(idSelector){
           const dataId = idSelector.getAttribute("data-testid");
           const matchId = dataId.match(/(?<=\.(us|uk)\_)([a-z0-9]+)/gi);
-          if(matchId) objectMessage.id = matchId[0];
+          if(matchId) objectMessage.id_message = matchId[0];
           
         }
 
-        const isDuplicate = ROOM_MESSAGE.filter(item => item.id == objectMessage.id).length > 0;
+        const isDuplicate = ROOM_MESSAGE.filter(item => item.id_message == objectMessage.id_message).length > 0;
 
         if(!isDuplicate && objectMessage.dateTime != ""){
           console.log(objectMessage);
